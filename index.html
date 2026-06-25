@@ -108,6 +108,16 @@
       background: linear-gradient(180deg, #fafcff, #f5f9ff);
     }
     .dropzone input[type="file"] { width: 100%; }
+    .field-control {
+      width: 100%;
+      border: 1px solid var(--border);
+      border-radius: 12px;
+      padding: 10px 12px;
+      background: #fff;
+      color: var(--text);
+      font: inherit;
+    }
+    .field-control:focus { outline: 2px solid rgba(10, 102, 194, .18); outline-offset: 2px; }
     .stats { display: grid; grid-template-columns: repeat(3, 1fr); gap: 12px; }
     .stat {
       background: linear-gradient(180deg, #fafcff, #f4f8ff);
@@ -159,9 +169,9 @@
 <body>
   <div class="container">
     <section class="hero">
-      <div class="eyebrow">CSV automation · Shop Leads</div>
-      <h1>Genesys Cloud Shop Leads CSV Importer</h1>
-      <p class="subtitle">Load a Shop Leads CSV, preview the rows, and create Genesys Cloud workitems in the <strong>mypurecloud.ie</strong> region for the <strong>ShopLeads</strong> work type.</p>
+      <div class="eyebrow" id="heroEyebrow">CSV automation · Shop Leads</div>
+      <h1 id="heroTitle">Genesys Cloud Shop Leads CSV Importer</h1>
+      <p class="subtitle" id="heroSubtitle">Load a CSV, preview the rows, and create Genesys Cloud workitems in the mypurecloud.ie region for the ShopLeads worktype.</p>
     </section>
 
     <div id="statusBanner" class="status-banner" role="alert"></div>
@@ -171,7 +181,16 @@
         <div class="card">
           <h2>Import setup</h2>
           <div class="stack">
-            <div class="kv"><strong>Target worktype</strong><span id="worktypeLabel">Resolving…</span></div>
+            <div class="kv">
+              <strong>Target worktype</strong>
+              <span>
+                <select id="worktypeSelect" class="field-control">
+                  <option value="dbabe1a5-8014-474f-b279-fcd388a21273">ShopLeads</option>
+                  <option value="0280bf6a-1fc2-4c69-96d3-0fcef1bf9e15">Demo Worktype</option>
+                </select>
+              </span>
+            </div>
+            <div class="kv"><strong>Selected worktype id</strong><span id="worktypeLabel">Resolving…</span></div>
             <div class="kv"><strong>Authentication</strong><span id="authState" class="muted">Checking Genesys Cloud sign-in…</span></div>
             <div class="button-row" style="margin-top:10px">
               <button type="button" id="signInBtn" class="btn btn-secondary" style="display:none">Sign in to Genesys Cloud</button>
@@ -179,7 +198,7 @@
             <div class="dropzone stack">
               <label for="csvFile"><strong>Optional CSV override</strong></label>
               <input type="file" id="csvFile" accept=".csv,text/csv" />
-              <p class="tiny">No file selected uses the attached ShopLeadsSampleData.csv contents.</p>
+              <p class="tiny" id="csvNote">No file selected uses the embedded sample CSV.</p>
             </div>
             <div class="button-row">
               <button id="previewBtn" class="btn btn-secondary" type="button">Preview rows</button>
@@ -232,11 +251,34 @@
   </div>
 
 <script>
-  const CLIENT_ID = '34aac662-f566-4d91-8896-d1b0b6f44b1a';
+  const CLIENT_ID = '584c1e79-568e-4d71-91ff-3e00bf01d04b';
   const REGION = 'mypurecloud.ie';
   const API_BASE = 'https://api.' + REGION;
   const AUTH_BASE = 'https://login.' + REGION;
-  const TARGET_WORKTYPE_NAME = 'ShopLeads';
+  const WORKTYPE_OPTIONS = {
+    'dbabe1a5-8014-474f-b279-fcd388a21273': {
+      id: 'dbabe1a5-8014-474f-b279-fcd388a21273',
+      worktypeLabel: 'ShopLeads',
+      displayLabel: 'Shop Leads',
+      singularLabel: 'Shop Leads workitem',
+      pluralLabel: 'Shop Leads workitems',
+      eyebrow: 'CSV automation · Shop Leads',
+      heroTitle: 'Genesys Cloud Shop Leads CSV Importer',
+      subtitle: 'Load a CSV, preview the rows, and create Genesys Cloud workitems in the mypurecloud.ie region for the ShopLeads worktype.'
+    },
+    '0280bf6a-1fc2-4c69-96d3-0fcef1bf9e15': {
+      id: '0280bf6a-1fc2-4c69-96d3-0fcef1bf9e15',
+      worktypeLabel: 'Demo Worktype',
+      displayLabel: 'Demo Workitem',
+      singularLabel: 'Demo Workitem',
+      pluralLabel: 'Demo Workitems',
+      eyebrow: 'CSV automation · Demo Workitem',
+      heroTitle: 'Genesys Cloud Demo Workitem CSV Importer',
+      subtitle: 'Load a CSV, preview the rows, and create Genesys Cloud workitems in the mypurecloud.ie region for the Demo Worktype.'
+    }
+  };
+  const DEFAULT_WORKTYPE_ID = 'dbabe1a5-8014-474f-b279-fcd388a21273';
+  let selectedWorktypeId = DEFAULT_WORKTYPE_ID;
   const REDIRECT_URI_OVERRIDE = '';
   const REDIRECT_URI = resolveRedirectUri();
   const EMBEDDED_CSV_TEXT = "name,customerid_text,leadname_text,leaddescription_text,owner_text,originator_text,campaignid_text,waveid_text,status_text,reason_text,outboundcontactrecordid_text,customercontactreacheddate_datetime,shopid_text,shopdistrict_text,shoparea_text,contactfirstname_text,contactlastname_text,contactpostcode_text,contactcity_text,contactstreet_text,contacthousenumber_text,contactlanguage_text,contactphonenumber_text,contactemailaddress_text,instlomkey_text,instcountrycode_text,instpostcode_text,instcity_text,inststreet_text,insthousenumber_text,insthousenumbersuffix_text,instboxnumber_text,instblocknumber_text,instfloornumber_text,instapartmentnumber_text,instprovince_text,callbackdatetime_datetime,requestoperid_text,requestorname_text,requestoremail_text,tree_text\nShopLeads01,12345678,Andy Cap,,,,CMP0009625,WVE0010648,,,,,Shop8254,DISTS,Area03,Andy,Cap,AB1 2BG,Aberdeen,Argile Street,1,EN,+447798932341,andy@fakemail.com,,44,AB1 2BG,Aberdeen,Argile Street,1,,,,,,,,,,,\nShopLeads02,12345679,Bill Baxby,,,,CMP0009625,WVE0010648,,,,,Shop8862,DISTS,Area03,Bill,Baxby,BA2 3DC,Birmingham,Bond Street,2,EN,+447798932341,bill@fakemail.com,,44,BA2 3DC,Birmingham,Bond Street,2,,,,,,,,,,,\nShopLeads03,12345680,Carl Catcher,,,,CMP0009625,WVE0010648,,,,,Shop2771,DISWAL1,Area01,Carl,Catcher,CO3 4BG,Colchester,Cain Lane,3,EN,+447798932341,carl@fakemail.com,,44,CO3 4BG,Colchester,Cain Lane,3,,,,,,,,,,,\nShopLeads04,12345681,David Dingle,,,,CMP0009625,WVE0010648,,,,,Shop8254,DISTS,Area03,David,Dingle,DA4 5TY,Darlington,Dynasty Road,4,EN,+447798932341,david@fakemail.com,,44,DA4 5TY,Darlington,Dynasty Road,4,,,,,,,,,,,\nShopLeads05,12345682,Eric Early,,,,CMP0009625,WVE0010648,,,,,Shop8862,DISTS,Area03,Eric,Early,EV5 1OP,Eversley,East Street,5,EN,+447798932341,eric@fakemail.com,,44,EV5 1OP,Eversley,East Street,5,,,,,,,,,,,\nShopLeads06,12345683,Freda Farthing,,,,CMP0009625,WVE0010648,,,,,Shop2771,DISWAL1,Area01,Freda,Farthing,FK16 3HD,Falkirk,Forth Road,6,EN,+447798932341,freda@fakemail.com,,44,FK16 3HD,Falkirk,Forth Road,6,,,,,,,,,,,\nShopLeads07,12345684,Gill Green,,,,CMP0009625,WVE0010648,,,,,Shop8254,DISTS,Area03,Gill,Green,GB10 6PA,Greenwich,Ginger Lane,7,EN,+447798932341,gill@fakemail.com,,44,GB10 6PA,Greenwich,Ginger Lane,7,,,,,,,,,,,\nShopLeads08,12345685,Harriot Harding,,,,CMP0009625,WVE0010648,,,,,Shop8862,DISTS,Area03,Harriot,Harding,HA5 7XW,Harlow,Harrington Hill,8,EN,+447798932341,Harriot@fakemail.com,,44,HA5 7XW,Harlow,Harrington Hill,8,,,,,,,,,,,\nShopLeads09,12345686,Ian Innings,,,,CMP0009625,WVE0010648,,,,,Shop2771,DISWAL1,Area01,Ian,Innings,IN19 0PL,Inchcape,Impish Drive,9,EN,+447798932341,ian@fakemail.com,,44,IN19 0PL,Inchcape,Impish Drive,9,,,,,,,,,,,\nShopLeads10,12345687,John Jennings,,,,CMP0009625,WVE0010648,,,,,Shop8254,DISTS,Area03,John,Jennings,JE8 2BE,Jeffington,Justice Ride,10,EN,+447798932341,john@fakemail.com,,44,JE8 2BE,Jeffington,Justice Ride,10,,,,,,,,,,,\n";
@@ -281,7 +323,34 @@
   }
 
   function escapeHtml(str) {
-    return String(str).replace(/[&<>"']/g, c => ({ '&': '&amp;', '<': '&lt;', '>': '&gt;', '"': '&quot;', "'": '&#39;' })[c]);
+    return String(str).replace(/[&<>"']/g, c => ({ '&': '&amp;', '<': '&lt;', '>': '&lt;', '>': '&gt;', '"': '&quot;', "'": '&#39;' })[c]);
+  }
+
+  function getSelectedWorktypeConfig() {
+    const select = document.getElementById('worktypeSelect');
+    const worktypeId = (select && select.value) ? select.value : selectedWorktypeId;
+    return WORKTYPE_OPTIONS[worktypeId] || WORKTYPE_OPTIONS[DEFAULT_WORKTYPE_ID];
+  }
+
+  function getWorkitemLabel(count) {
+    const cfg = getSelectedWorktypeConfig();
+    return count === 1 ? cfg.singularLabel : cfg.pluralLabel;
+  }
+
+  function applyWorktypeUi() {
+    const cfg = getSelectedWorktypeConfig();
+    selectedWorktypeId = cfg.id;
+    document.title = cfg.heroTitle;
+    const eyebrow = document.getElementById('heroEyebrow');
+    const title = document.getElementById('heroTitle');
+    const subtitle = document.getElementById('heroSubtitle');
+    if (eyebrow) eyebrow.textContent = cfg.eyebrow;
+    if (title) title.textContent = cfg.heroTitle;
+    if (subtitle) subtitle.textContent = cfg.subtitle;
+    const note = document.getElementById('csvNote');
+    if (note) note.textContent = 'No file selected uses the embedded sample CSV.';
+    const label = document.getElementById('worktypeLabel');
+    if (label) label.textContent = cfg.worktypeLabel + ' · ' + cfg.id;
   }
 
   function log(message, level) {
@@ -312,7 +381,7 @@
   function renderAuthDiagnostics(extra) {
     const lines = [
       'Region: ' + REGION,
-      'Target worktype: ' + TARGET_WORKTYPE_NAME,
+      'Target worktype: ' + getSelectedWorktypeConfig().worktypeLabel,
       'Redirect URI: ' + (REDIRECT_URI || '[not available - local file mode]')
     ];
     if (extra) {
@@ -386,17 +455,13 @@
   }
 
   async function fetchTargetWorktype() {
-    log('Resolving worktype ' + TARGET_WORKTYPE_NAME + '...', 'info');
-    const data = await apiFetch('/api/v2/taskmanagement/worktypes/query', {
-      method: 'POST',
-      body: JSON.stringify({ pageSize: 100, attributes: ['id', 'name'] })
-    });
-    const match = (data.entities || []).find(wt => wt.name === TARGET_WORKTYPE_NAME);
-    if (!match) throw new Error('Worktype ' + TARGET_WORKTYPE_NAME + ' was not found.');
-    targetWorktypeId = match.id;
-    document.getElementById('worktypeLabel').textContent = TARGET_WORKTYPE_NAME + ' · ' + match.id;
+    const cfg = getSelectedWorktypeConfig();
+    selectedWorktypeId = cfg.id;
+    log('Resolving worktype ' + cfg.worktypeLabel + '...', 'info');
+    const detail = await apiFetch('/api/v2/taskmanagement/worktypes/' + cfg.id);
+    targetWorktypeId = detail.id || cfg.id;
+    document.getElementById('worktypeLabel').textContent = cfg.worktypeLabel + ' · ' + targetWorktypeId;
 
-    const detail = await apiFetch('/api/v2/taskmanagement/worktypes/' + match.id);
     const schemaId = detail.schema && detail.schema.id;
     if (!schemaId) throw new Error('Target worktype has no schema.');
     const schema = await apiFetch('/api/v2/taskmanagement/workitems/schemas/' + schemaId);
@@ -493,7 +558,7 @@
     updateFieldPills();
     updatePreview();
     updateStats(0, 0, datasetRows.length);
-    updateProgress(0, datasetRows.length, 'Embedded Shop Leads sample loaded.');
+    updateProgress(0, datasetRows.length, 'Embedded ' + getSelectedWorktypeConfig().displayLabel + ' sample loaded.');
     log('Loaded embedded dataset with ' + datasetRows.length + ' row(s).', 'ok');
   }
 
@@ -610,7 +675,7 @@
 
   async function createWorkItemFromRow(row, index) {
     const payload = mapRowToPayload(row, index);
-    log('Creating work item ' + payload.name + ' with ' + Object.keys(payload.customFields).length + ' custom field(s).', 'info');
+    log('Creating ' + getSelectedWorktypeConfig().displayLabel + ' ' + payload.name + ' with ' + Object.keys(payload.customFields).length + ' custom field(s).', 'info');
     return apiFetch('/api/v2/taskmanagement/workitems', {
       method: 'POST',
       body: JSON.stringify(payload)
@@ -624,7 +689,7 @@
       return;
     }
     if (!targetWorktypeId) {
-      showStatus('The target worktype could not be resolved.', 'error');
+      showStatus('The selected worktype could not be resolved.', 'error');
       return;
     }
     if (!datasetRows.length) {
@@ -636,7 +701,7 @@
     document.getElementById('runBtn').disabled = true;
     document.getElementById('previewBtn').disabled = true;
     document.getElementById('csvFile').disabled = true;
-    showStatus('Import started for ' + datasetRows.length + ' Shop Leads row(s)…', 'info');
+    showStatus('Import started for ' + datasetRows.length + ' ' + getWorkitemLabel(datasetRows.length) + '…', 'info');
 
     let created = 0;
     let failed = 0;
@@ -677,10 +742,27 @@
     else showStatus('Import finished with ' + created + ' created and ' + failed + ' failed.', 'warn');
   }
 
+  async function syncSelectedWorktype() {
+    selectedWorktypeId = document.getElementById('worktypeSelect').value;
+    applyWorktypeUi();
+    if (!accessToken) return;
+    document.getElementById('runBtn').disabled = true;
+    try {
+      await fetchTargetWorktype();
+      document.getElementById('runBtn').disabled = false;
+      showStatus('Switched to ' + getSelectedWorktypeConfig().displayLabel + '.', 'info');
+    } catch (err) {
+      console.error(err);
+      showStatus('Worktype setup error: ' + err.message, 'error');
+      log('Worktype switch error: ' + err.message, 'error');
+    }
+  }
+
   async function handleCsvSelection(event) {
     const file = event.target.files && event.target.files[0];
     if (!file) {
-      loadEmbeddedDataset();
+      applyWorktypeUi();
+    loadEmbeddedDataset();
       return;
     }
     const text = await file.text();
@@ -705,6 +787,7 @@
   async function init() {
     log('App initialising…', 'info');
     log('Page location: ' + window.location.href, 'info');
+    applyWorktypeUi();
     renderAuthDiagnostics();
 
     document.getElementById('previewBtn').addEventListener('click', () => {
@@ -712,6 +795,7 @@
       showStatus('Preview refreshed for ' + datasetRows.length + ' row(s).', 'info');
     });
     document.getElementById('runBtn').addEventListener('click', runImport);
+    document.getElementById('worktypeSelect').addEventListener('change', syncSelectedWorktype);
     document.getElementById('resetBtn').addEventListener('click', resetUi);
     document.getElementById('csvFile').addEventListener('change', handleCsvSelection);
 
@@ -757,7 +841,7 @@
         await fetchTargetWorktype();
         setAuthState('Signed in and ready');
         document.getElementById('runBtn').disabled = false;
-        showStatus('Authenticated and ready. The import will create ' + datasetRows.length + ' Shop Leads workitem(s).', 'success');
+        showStatus('Authenticated and ready. The import will create ' + datasetRows.length + ' ' + getWorkitemLabel(datasetRows.length) + '.', 'success');
       } else {
         showStatus('Sign in to Genesys Cloud to enable import.', 'info');
       }
